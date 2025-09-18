@@ -82,7 +82,7 @@ fraud-detection-mlops/
 ---
 
 ## 🔄 Project Pipeline Overview
-
+```text
       ┌─────────────┐
       │  Raw Data   │  <- DVC tracked
       └─────┬───────┘
@@ -119,7 +119,7 @@ fraud-detection-mlops/
    │ Basic Metrics │
    │ Drift Detect  │
    └───────────────┘
-
+```
 ---
 
 ### ✅ Flow Description
@@ -129,27 +129,6 @@ fraud-detection-mlops/
 4. **Experiment Tracking**: Metrics, parameters, artifacts tracked in **MLflow**.  
 5. **Real-time API**: FastAPI endpoint for fraud prediction.  
 6. **Monitoring**: Logs metrics, detects drift, alerts on anomalies.  
-
----
-
-## 🔄 Project Pipeline Overview (Mermaid)
-
-```mermaid
-flowchart TD
-    A[📂 Raw Data (DVC tracked)] --> B[⚙️ Preprocessing<br>Cleaning & Feature Engineering]
-    B --> C[🤖 Model Training<br>Baseline ML, Anomaly Detection, Hybrid]
-    C --> D[📊 MLflow Tracking<br>Experiments, Metrics, Artifacts]
-    D --> E[🚀 Real-time API<br>FastAPI Endpoint]
-    E --> F[📈 Monitoring & Drift Detection<br>Basic Metrics + Drift Alerts]
-```
-
-### ✅ Explanation of Flow
-1. **Raw Data**: Stored and versioned using **DVC**.  
-2. **Preprocessing**: Config-driven feature engineering, cleaning, and transformations.  
-3. **Model Training**: Stepwise approach — baseline ML → anomaly detection → hybrid model.  
-4. **Experiment Tracking**: Track all experiments, parameters, and metrics using **MLflow**.  
-5. **Real-Time API**: FastAPI serves predictions for incoming transactions.  
-6. **Monitoring & Drift Detection**: Tracks metrics, detects data/concept drift, and logs alerts.  
 
 ---
 
