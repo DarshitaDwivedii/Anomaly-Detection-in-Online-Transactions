@@ -81,6 +81,78 @@ fraud-detection-mlops/
 
 ---
 
+## 🔄 Project Pipeline Overview
+
+      ┌─────────────┐
+      │  Raw Data   │  <- DVC tracked
+      └─────┬───────┘
+            │
+            ▼
+   ┌─────────────────┐
+   │ Preprocessing   │  <- src/preprocessing/
+   │ (Cleaning,      │
+   │ Feature Eng.)   │
+   └─────┬───────────┘
+         │
+         ▼
+   ┌───────────────┐
+   │ Model Training│  <- src/models/
+   │ Baseline ML   │
+   │ Anomaly Model │
+   │ Hybrid Model  │
+   └─────┬─────────┘
+         │
+         ▼
+   ┌───────────────┐
+   │  MLflow       │  <- experiments/ tracking
+   └─────┬─────────┘
+         │
+         ▼
+   ┌───────────────┐
+   │ Real-time API │  <- src/api/
+   │ FastAPI       │
+   └─────┬─────────┘
+         │
+         ▼
+   ┌───────────────┐
+   │ Monitoring    │  <- src/monitoring/
+   │ Basic Metrics │
+   │ Drift Detect  │
+   └───────────────┘
+
+---
+
+### ✅ Flow Description
+1. **Raw Data**: Versioned with **DVC** for reproducibility.  
+2. **Preprocessing**: Config-driven cleaning and feature engineering.  
+3. **Model Training**: Stepwise model development: baseline → anomaly detection → hybrid.  
+4. **Experiment Tracking**: Metrics, parameters, artifacts tracked in **MLflow**.  
+5. **Real-time API**: FastAPI endpoint for fraud prediction.  
+6. **Monitoring**: Logs metrics, detects drift, alerts on anomalies.  
+
+---
+
+## 🔄 Project Pipeline Overview (Mermaid)
+
+```mermaid
+flowchart TD
+    A[📂 Raw Data (DVC tracked)] --> B[⚙️ Preprocessing<br>Cleaning & Feature Engineering]
+    B --> C[🤖 Model Training<br>Baseline ML, Anomaly Detection, Hybrid]
+    C --> D[📊 MLflow Tracking<br>Experiments, Metrics, Artifacts]
+    D --> E[🚀 Real-time API<br>FastAPI Endpoint]
+    E --> F[📈 Monitoring & Drift Detection<br>Basic Metrics + Drift Alerts]
+```
+
+### ✅ Explanation of Flow
+1. **Raw Data**: Stored and versioned using **DVC**.  
+2. **Preprocessing**: Config-driven feature engineering, cleaning, and transformations.  
+3. **Model Training**: Stepwise approach — baseline ML → anomaly detection → hybrid model.  
+4. **Experiment Tracking**: Track all experiments, parameters, and metrics using **MLflow**.  
+5. **Real-Time API**: FastAPI serves predictions for incoming transactions.  
+6. **Monitoring & Drift Detection**: Tracks metrics, detects data/concept drift, and logs alerts.  
+
+---
+
 ## ⚙️ Tech Stack
 - **Languages & Libraries**: Python, scikit-learn, pandas, numpy, matplotlib/seaborn  
 - **ML Models**: Logistic Regression, Random Forest, Isolation Forest, Autoencoders  
