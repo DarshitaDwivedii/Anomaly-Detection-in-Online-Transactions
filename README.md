@@ -28,7 +28,56 @@ The primary goals of this project are:
 ## 🏗️ Architecture
 The project is structured to mimic real-world ML systems with modular components.
 
-<pre> ```bash fraud-detection-mlops/ │ ├── 📂 data/ # Raw + processed data (tracked by DVC, not Git) │ ├── 📂 raw/ │ ├── 📂 processed/ │ └── 📄 dvc.yaml │ ├── 📂 notebooks/ # Jupyter notebooks for EDA & prototyping │ ├── 📂 src/ # Core source code │ ├── 📂 preprocessing/ # Data cleaning, feature engineering │ │ └── ⚙️ preprocess.py │ │ │ ├── 📂 models/ # Training, evaluation, anomaly detection │ │ ├── 🤖 baseline.py # Logistic Regression, RF, etc. │ │ ├── 🔍 anomaly.py # Isolation Forest / AutoEncoder │ │ └── 🔗 hybrid.py # Combination models │ │ │ ├── 📂 api/ # Serving layer │ │ ├── 🚀 app.py # FastAPI entrypoint │ │ └── 🛠️ utils.py │ │ │ ├── 📂 monitoring/ # Monitoring & drift detection │ │ ├── 📊 basic_metrics.py │ │ ├── 📈 drift_detection.py │ │ └── 📝 logger.py │ │ │ └── ⚙️ config/ # Config-driven design │ ├── 📄 dataset.yaml # dataset-specific configs │ ├── 📄 model.yaml # model params │ └── 📄 api.yaml # API/monitoring configs │ ├── 📂 experiments/ # MLflow artifacts (gitignored) │ ├── 📂 tests/ # Unit + integration tests │ ├── 📂 scripts/ # Utility scripts (for CI/CD, automation) │ ├── 🖥️ run_training.sh │ └── 🖥️ run_api.sh │ ├── 📂 .github/ # GitHub Actions workflows │ └── 📂 workflows/ │ └── ⚙️ ci.yml │ ├── 📄 requirements.txt # Python dependencies ├── 📄 dvc.lock # DVC lock file ├── 📄 README.md # Project overview └── 📄 mlflow_config.yaml # MLflow setup ``` </pre>
+```text
+fraud-detection-mlops/
+│
+├── 📂 data/                          # Raw + processed data (tracked by DVC, not Git)
+│   ├── 📂 raw/                       
+│   ├── 📂 processed/                 
+│   └── 📄 dvc.yaml                   
+│
+├── 📂 notebooks/                     # Jupyter notebooks for EDA & prototyping
+│
+├── 📂 src/                           # Core source code
+│   ├── 📂 preprocessing/             # Data cleaning, feature engineering
+│   │   └── ⚙️ preprocess.py
+│   │
+│   ├── 📂 models/                    # Training, evaluation, anomaly detection
+│   │   ├── 🤖 baseline.py            # Logistic Regression, RF, etc.
+│   │   ├── 🔍 anomaly.py             # Isolation Forest / AutoEncoder
+│   │   └── 🔗 hybrid.py              # Combination models
+│   │
+│   ├── 📂 api/                       # Serving layer
+│   │   ├── 🚀 app.py                 # FastAPI entrypoint
+│   │   └── 🛠️ utils.py
+│   │
+│   ├── 📂 monitoring/                # Monitoring & drift detection
+│   │   ├── 📊 basic_metrics.py
+│   │   ├── 📈 drift_detection.py
+│   │   └── 📝 logger.py
+│   │
+│   └── ⚙️ config/                    # Config-driven design
+│       ├── 📄 dataset.yaml           # dataset-specific configs
+│       ├── 📄 model.yaml             # model params
+│       └── 📄 api.yaml               # API/monitoring configs
+│
+├── 📂 experiments/                   # MLflow artifacts (gitignored)
+│
+├── 📂 tests/                         # Unit + integration tests
+│
+├── 📂 scripts/                       # Utility scripts (for CI/CD, automation)
+│   ├── 🖥️ run_training.sh
+│   └── 🖥️ run_api.sh
+│
+├── 📂 .github/                       # GitHub Actions workflows
+│   └── 📂 workflows/
+│       └── ⚙️ ci.yml
+│
+├── 📄 requirements.txt               # Python dependencies
+├── 📄 dvc.lock                       # DVC lock file
+├── 📄 README.md                      # Project overview
+└── 📄 mlflow_config.yaml             # MLflow setup
+```
 
 ---
 
