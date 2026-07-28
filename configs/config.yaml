@@ -1,0 +1,53 @@
+data:
+  raw_path: "data/raw/creditcard.csv"
+  processed_path: "data/processed/creditcard_processed.csv"
+  target_col: "Class"
+
+preprocessing:
+  handle_missing: true
+  categorical_encoding: "onehot"   # options: onehot, target
+  scaling: true
+
+features:
+  add_time_of_day: true          # derive hour-of-day from the 'Time' column
+  log_transform_amount: true     # log1p on 'Amount' to tame its skew
+
+imbalance:
+  strategy: "smote"               # options: smote, class_weight, none
+  # applied ONLY to the training split, never to validation/test/anomaly data
+
+model:
+  active: "hybrid"                 # options: baseline, anomaly, hybrid
+  baseline:
+    type: "RandomForest"
+    n_estimators: 150
+    max_depth: 12
+    random_state: 42
+  anomaly:
+    type: "IsolationForest"
+    n_estimators: 200
+    contamination: 0.0017          # ~ real fraud rate in this dataset
+    random_state: 42
+  hybrid:
+    baseline_weight: 0.6           # weight on supervised probability vs anomaly score
+
+training:
+  test_size: 0.2
+  random_state: 42
+  models_dir: "models"
+
+mlflow:
+  tracking_uri: "sqlite:///experiments/mlflow.db"   # file-store backend is deprecated in current MLflow
+  experiment_name: "fraud-detection"
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+  model_path: "models/hybrid_model.pkl"
+  feature_columns_path: "models/feature_columns.json"
+
+monitoring:
+  drift:
+    method: "ks"                   # options: ks, psi
+    reference_sample_path: "models/reference_sample.csv"
+    alert_threshold: 0.1

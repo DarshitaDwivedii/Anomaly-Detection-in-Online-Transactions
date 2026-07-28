@@ -1,227 +1,122 @@
-# 🛡️ Anomaly Detection in Online Transactions (Fraud Detection)
+# 🛡️ Fraud Detection MLOps — Anomaly Detection in Online Transactions
 
-## 📌 Overview
-This project focuses on **building a robust, modular, and production-ready fraud detection system** for online financial transactions.  
-It goes beyond a simple machine learning model — showcasing **MLOps best practices**, **scalable architecture**, and **real-world deployment readiness**.  
+## Overview
+A fraud detection system for online credit card transactions, built to demonstrate not just a model but the **surrounding MLOps practices** needed to run one: config-driven pipelines, data versioning, experiment tracking, a served API, and drift monitoring.
 
-The primary goals of this project are:
-- Demonstrate **ML skills** (classical ML, anomaly detection, hybrid models).  
-- Demonstrate **MLOps skills** (data versioning, experiment tracking, CI/CD, monitoring, API deployment).  
-- Build the project **config-driven and modular**, so switching datasets/models requires minimal code changes.  
-- Deliver a project that is practical, and production-aligned.
+Dataset: the [Kaggle Credit Card Fraud dataset](https://www.kaggle.com/mlg-ulb/creditcardfraud) — 284,807 transactions, 492 fraudulent (0.17%). The dataset itself is a well-known one; the point of this project is the engineering around it, not the dataset's novelty.
 
----
+## What's actually built (and tested)
+Everything below is implemented, has passing tests, and has been run end-to-end on the real dataset — not aspirational.
 
-## 🎯 Key Features
-- **Dataset Flexibility** → Start with the Credit Card Fraud dataset, later switch to IEEE-CIS Fraud dataset (or others) with minimal config changes.  
-- **Config-Driven Design** → All dataset, model, and API settings live in YAML configs (`src/config/`).  
-- **Modular Pipeline** → Each stage (data preprocessing, training, serving, monitoring) is isolated for reuse.  
-- **Data Versioning (DVC)** → Raw and processed data tracked with DVC for reproducibility.  
-- **Experiment Tracking (MLflow)** → Track experiments, parameters, metrics, and artifacts.  
-- **Baseline → Anomaly Detection → Hybrid Models** → Stepwise model development for clarity and benchmarking.  
-- **FastAPI Real-Time Serving** → Deploy fraud detection API with real-time inference.  
-- **Monitoring & Drift Detection** → Basic monitoring + drift detection implemented for deployed models.  
-- **CI/CD with GitHub Actions** → Automate testing, linting, and deployment workflows.  
+- **Config-driven pipeline** — dataset paths, preprocessing options, model hyperparameters, and API/monitoring settings all live in `configs/config.yaml`.
+- **Three models, trained and compared:**
+  - Baseline: RandomForest (supervised)
+  - Anomaly: IsolationForest (unsupervised)
+  - Hybrid: weighted combination of both
+- **Correct handling of class imbalance** — SMOTE is applied *only* to the training split, never to validation/test data or to the data the anomaly model sees (oversampling before evaluation would inflate metrics with synthetic duplicates; oversampling before an anomaly model violates its "mostly normal" assumption).
+- **Persisted preprocessing** — the fitted imputer/encoder/scaler is saved as one object and reused identically at inference time, so the API doesn't silently drift from what the model was trained on.
+- **Experiment tracking (MLflow)** — every training run (baseline, anomaly, hybrid) logs params, metrics, and the model artifact.
+- **Real-time serving (FastAPI)** — `/predict` and `/health` endpoints, backed by the actual trained hybrid model.
+- **Monitoring** — KS-test-based drift detection (verified to correctly flag an artificially shifted feature and stay silent on unshifted ones) and a batch evaluation script for tracking live performance against ground truth.
+- **Data versioning (DVC)** — raw data tracked outside git.
+- **CI (GitHub Actions)** — lint (ruff) + full test suite (pytest) on every push/PR.
+- **25 passing tests** covering preprocessing, all three models, the API, and drift detection — including regression tests for two real bugs caught during development (see below).
 
----
+## Results (real, on the actual test split)
 
-## 🏗️ Architecture
-The project is structured to mimic real-world ML systems with modular components.
+| Model | Precision | Recall | F1 | ROC-AUC | PR-AUC |
+|---|---|---|---|---|---|
+| Baseline (RandomForest) | 0.568 | 0.857 | 0.683 | 0.986 | 0.833 |
+| Anomaly (IsolationForest) | 0.299 | 0.296 | 0.297 | 0.951 | 0.172 |
+| **Hybrid** | **0.701** | 0.837 | **0.763** | 0.972 | 0.773 |
+
+PR-AUC (not accuracy) is the metric that matters here — with fraud at 0.17% of transactions, a model that predicts "not fraud" always would still score ~99.8% accuracy while being useless.
+
+The hybrid model's main value: **it cuts false positives by ~45% versus the baseline alone (64 → 35 on the test set) while keeping recall almost unchanged (85.7% → 83.7%)**. Fewer false positives directly means fewer legitimate customers getting blocked or flagged — a real business tradeoff, not just a metric bump.
+
+Isolation Forest alone performs much worse than the supervised baseline (expected — it has no access to labels), but it contributes signal the supervised model alone doesn't capture, which is what makes the hybrid combination worthwhile rather than redundant.
+
+## Bugs found and fixed during development
+Worth documenting because they're the kind of subtle-but-real mistakes an interviewer might probe for:
+
+1. **Evaluation leakage risk**: an earlier version applied SMOTE to the *entire* dataset before train/test splitting. That leaks synthetic duplicates across the split and inflates test metrics — fixed by moving resampling to training-time only, applied to the training split alone.
+2. **Feature engineering order bug**: derived features (hour-of-day from `Time`, log-transformed `Amount`) were being computed *after* scaling, so `hour_of_day` was computed from an already-standardized `Time` column (meaningless) and `log1p` was applied to a scaled `Amount` that can go negative. Fixed by engineering features on raw values before scaling.
+3. **Imputer fit on the target column**: the missing-value imputer was accidentally fit on all numeric columns including `Class` (the label), which meant it silently expected a `Class` column at inference time — breaking real API requests, which obviously don't include the label. Caught by a test, fixed by excluding the target column from imputation.
+
+## Architecture
 
 ```text
 fraud-detection-mlops/
-│
-├── 📂 data/                          # Raw + processed data (tracked by DVC, not Git)
-│   ├── 📂 raw/                       
-│   ├── 📂 processed/                 
-│   └── 📄 dvc.yaml                   
-│
-├── 📂 notebooks/                     # Jupyter notebooks for EDA & prototyping
-│
-├── 📂 src/                           # Core source code
-│   ├── 📂 preprocessing/             # Data cleaning, feature engineering
-│   │   └── ⚙️ preprocess.py
-│   │
-│   ├── 📂 models/                    # Training, evaluation, anomaly detection
-│   │   ├── 🤖 baseline.py            # Logistic Regression, RF, etc.
-│   │   ├── 🔍 anomaly.py             # Isolation Forest / AutoEncoder
-│   │   └── 🔗 hybrid.py              # Combination models
-│   │
-│   ├── 📂 api/                       # Serving layer
-│   │   ├── 🚀 app.py                 # FastAPI entrypoint
-│   │   └── 🛠️ utils.py
-│   │
-│   ├── 📂 monitoring/                # Monitoring & drift detection
-│   │   ├── 📊 basic_metrics.py
-│   │   ├── 📈 drift_detection.py
-│   │   └── 📝 logger.py
-│   │
-│   └── ⚙️ config/                    # Config-driven design
-│       ├── 📄 dataset.yaml           # dataset-specific configs
-│       ├── 📄 model.yaml             # model params
-│       └── 📄 api.yaml               # API/monitoring configs
-│
-├── 📂 experiments/                   # MLflow artifacts (gitignored)
-│
-├── 📂 tests/                         # Unit + integration tests
-│
-├── 📂 scripts/                       # Utility scripts (for CI/CD, automation)
-│   ├── 🖥️ run_training.sh
-│   └── 🖥️ run_api.sh
-│
-├── 📂 .github/                       # GitHub Actions workflows
-│   └── 📂 workflows/
-│       └── ⚙️ ci.yml
-│
-├── 📄 requirements.txt               # Python dependencies
-├── 📄 dvc.lock                       # DVC lock file
-├── 📄 README.md                      # Project overview
-└── 📄 mlflow_config.yaml             # MLflow setup
+├── configs/config.yaml          # all pipeline/model/API/monitoring settings
+├── data/
+│   ├── raw/                     # DVC-tracked, not in git
+│   └── processed/                # reference snapshot (git-ignored)
+├── notebooks/
+│   └── eda_creditcard.ipynb     # EDA: class balance, feature distributions, correlations
+├── src/
+│   ├── preprocessing/
+│   │   ├── ingestion.py
+│   │   ├── feature_engineering.py
+│   │   └── preprocess.py        # fits + persists imputer/encoder/scaler
+│   ├── models/
+│   │   ├── baseline.py          # RandomForest, SMOTE on train split only
+│   │   ├── anomaly.py           # IsolationForest
+│   │   └── hybrid.py            # combined model, single loadable artifact
+│   ├── api/
+│   │   ├── app.py               # FastAPI /predict, /health
+│   │   └── schemas.py
+│   ├── monitoring/
+│   │   ├── drift_detection.py   # KS-test vs reference training sample
+│   │   ├── basic_metrics.py     # batch evaluation against ground truth
+│   │   └── logger.py
+│   ├── evaluation.py            # shared metrics (precision/recall/F1/ROC-AUC/PR-AUC)
+│   ├── train_pipeline.py        # orchestrates the full run
+│   └── utils.py
+├── tests/                       # 25 tests, pytest
+├── scripts/
+│   ├── run_training.sh
+│   ├── run_api.sh
+│   └── run_monitoring.sh
+└── .github/workflows/ci.yml
 ```
 
----
-
-## 🔄 Project Pipeline Overview
-```text
-      ┌─────────────┐
-      │  Raw Data   │  <- DVC tracked
-      └─────┬───────┘
-            │
-            ▼
-   ┌─────────────────┐
-   │ Preprocessing   │  <- src/preprocessing/
-   │ (Cleaning,      │
-   │ Feature Eng.)   │
-   └─────┬───────────┘
-         │
-         ▼
-   ┌───────────────┐
-   │ Model Training│  <- src/models/
-   │ Baseline ML   │
-   │ Anomaly Model │
-   │ Hybrid Model  │
-   └─────┬─────────┘
-         │
-         ▼
-   ┌───────────────┐
-   │  MLflow       │  <- experiments/ tracking
-   └─────┬─────────┘
-         │
-         ▼
-   ┌───────────────┐
-   │ Real-time API │  <- src/api/
-   │ FastAPI       │
-   └─────┬─────────┘
-         │
-         ▼
-   ┌───────────────┐
-   │ Monitoring    │  <- src/monitoring/
-   │ Basic Metrics │
-   │ Drift Detect  │
-   └───────────────┘
-```
----
-
-### ✅ Flow Description
-1. **Raw Data**: Versioned with **DVC** for reproducibility.  
-2. **Preprocessing**: Config-driven cleaning and feature engineering.  
-3. **Model Training**: Stepwise model development: baseline → anomaly detection → hybrid.  
-4. **Experiment Tracking**: Metrics, parameters, artifacts tracked in **MLflow**.  
-5. **Real-time API**: FastAPI endpoint for fraud prediction.  
-6. **Monitoring**: Logs metrics, detects drift, alerts on anomalies.  
-
----
-
-## ⚙️ Tech Stack
-- **Languages & Libraries**: Python, scikit-learn, pandas, numpy, matplotlib/seaborn  
-- **ML Models**: Logistic Regression, Random Forest, Isolation Forest, Autoencoders  
-- **Experiment Tracking**: MLflow  
-- **Data Versioning**: DVC  
-- **Serving**: FastAPI  
-- **Monitoring**: Custom metrics + drift detection (data drift, concept drift)  
-- **CI/CD**: GitHub Actions  
-- **Optional Extensions**: PostgreSQL or other DBs (future work)  
-
----
-
-## 🚀 Project Workflow
-
-### 1. Data Pipeline
-- Store raw and processed data under DVC.
-- Config-driven preprocessing (`src/preprocessing/preprocess.py`).
-- Ability to switch datasets by editing `dataset.yaml`.
-
-### 2. Modeling
-- **Step 1:** Train classical ML baseline models (Logistic Regression, Random Forest).  
-- **Step 2:** Implement anomaly detection (Isolation Forest, Autoencoder).  
-- **Step 3:** Build hybrid model combining supervised + anomaly detection.  
-- Track all runs with **MLflow**.
-
-### 3. Serving
-- Expose models as a **FastAPI** service.
-- Endpoint `/predict` for transaction fraud detection.
-- Configurable thresholds via YAML.
-
-### 4. Monitoring
-- Log model metrics on live traffic.
-- Detect data drift (e.g., Kolmogorov-Smirnov, PSI).
-- Simple alerting mechanism for anomalies.
-
-### 5. CI/CD
-- **GitHub Actions** → run unit tests, linting, and DVC/MLflow checks.
-- Automated deployment pipeline for API.
-
----
-
-## 📊 Monitoring & Drift Detection
-- **Basic Metrics**: Accuracy, Precision, Recall, F1, AUC.  
-- **Drift Detection**: PSI (Population Stability Index), KS-Test for data drift.  
-- **Visualization**: Monitoring dashboards (basic plots/logs).  
-
----
-
-## 📌 Future Improvements
-- Switch storage backend from **DVC** to **PostgreSQL** (DB integration).  
-- Deploy with **Docker + Kubernetes** for scalable production.  
-- Integrate **real-time streaming data** (Kafka or Spark Streaming).  
-- Add **advanced monitoring** (Prometheus + Grafana dashboards).  
-
----
-
-## 🧑‍🎓 Why This Project Matters
-This project is not a “toy fraud detection model.”  
-It’s designed to reflect **real-world industry workflows**:
-- Reproducibility via **DVC + MLflow**  
-- Deployment readiness via **FastAPI + CI/CD**  
-- Model robustness via **baseline → anomaly detection → hybrid**  
-- Resume-friendly skills: **MLOps, ML, Monitoring, Config-driven design**  
-
-It is a **capstone-style project** that balances academic rigor with professional depth.  
-
----
-
-## 📂 Setup & Run (Quickstart)
+## Quickstart
 
 ```bash
-# Clone the repo
-git clone <private-repo-url>
+git clone <repo-url>
 cd fraud-detection-mlops
-
-# Install dependencies
 pip install -r requirements.txt
 
-# Run preprocessing + training (tracked via DVC)
-dvc repro
+# get the data (DVC-tracked)
+dvc pull   # or place creditcard.csv at data/raw/creditcard.csv manually
 
-# Serve API
-uvicorn src.api.app:app --reload
+# train all three models, log to MLflow, save the hybrid model
+bash scripts/run_training.sh
 
-# Run monitoring
-python src/monitoring/basic_metrics.py
+# serve the trained model
+bash scripts/run_api.sh
+# POST a transaction to http://localhost:8000/predict
+
+# check for drift / evaluate a labeled batch
+bash scripts/run_monitoring.sh path/to/batch.csv
+
+# run tests
+PYTHONPATH=. pytest tests/ -v
 ```
+
+## Tech stack
+Python, scikit-learn, imbalanced-learn (SMOTE), pandas/numpy, MLflow, FastAPI, DVC, GitHub Actions, pytest, ruff.
+
+## Honest scope notes
+- The anomaly-score-to-probability normalization uses bounds fit once on the training set (not refit per request) — refitting per batch would make single-transaction API calls always normalize to a meaningless constant, which is a subtle bug worth knowing to avoid.
+- The API takes already-feature-space input (raw transaction fields); a production system would sit this behind a service that converts raw payment-processor events into this feature space.
+- Drift detection here is feature-level KS-test against a static reference sample; a production system would also track drift over rolling windows and alert on trend, not just point-in-time comparisons.
+
+## Future improvements
+- Concept drift detection (not just feature drift) using rolling model performance
+- Model registry + staged rollout (MLflow Model Registry, canary deployment)
+- Containerize with Docker; deploy behind a load balancer
+- Swap in a second dataset (e.g. IEEE-CIS) to test how well the config-driven design generalizes
+
 ---
-
-📜 License
-
-This project is developed for educational and research purposes.
-Commercial usage requires permission.
+📜 Developed for educational and research purposes.

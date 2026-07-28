@@ -1,0 +1,87 @@
+# =========================
+# Data (tracked by DVC)
+# =========================
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/raw/*.dvc
+!data/processed/*.dvc
+
+# DVC
+.dvc/tmp/
+.dvc/cache/
+dvc_storage/
+
+# =========================
+# Models
+# =========================
+models/
+!models/.gitkeep
+
+# =========================
+# MLflow
+# =========================
+mlruns/
+experiments/mlruns/
+mlflow.db
+experiments/*.db
+
+# =========================
+# Reports
+# =========================
+reports/monitoring_*.json
+reports/figures/
+reports/*.html
+
+# =========================
+# Logs
+# =========================
+*.log
+logs/
+install-log.txt
+
+# =========================
+# Jupyter
+# =========================
+.ipynb_checkpoints/
+
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+*.egg-info/
+.eggs/
+build/
+dist/
+pip-wheel-metadata/
+
+# =========================
+# Virtual Environments
+# =========================
+.venv/
+venv/
+env/
+ENV/
+
+# =========================
+# IDEs
+# =========================
+.vscode/
+.idea/
+*.swp
+
+# =========================
+# OS
+# =========================
+.DS_Store
+Thumbs.db
+Desktop.ini
